@@ -21,7 +21,9 @@ class main():
         if config.Quantization == 'intel' and config.device == 'cpu':
             ov_model_path = f"{config.version}_openvino_model/"
             device = self.get_available_openvino_device()
-
+            if device == 'CPU':
+                logging.info(f"Intel GPU NPU 추론을 지원히지않습니다 !!!!! {config.Quantization} -----> None 설정으로 실행해주세요")
+                exit(1)
             if not hasattr(self,'device'):
                 self.device = device
 
@@ -30,7 +32,7 @@ class main():
                 try:
                     self.model.export(format='openvino' , half = True , simplify= True , dynamic = False , verbose = True , optimize = True)
                 except Exception as e:
-                    logging.info(f"OpenVINO EXPORT Fail.... 일반버전으로 실행해주세요 (Quantization ---> None설정)")
+                    logging.info(f"OpenVINO EXPORT Fail.... 일반버전으로 실행해주세요 ({config.Quantization} ---> None설정)")
                     logging.info(f"{e}")
                     exit(1)
             else:
@@ -70,14 +72,13 @@ class main():
         prev_time = datetime.now().timestamp()
         while True:
             ret, frame = cap.read()
-            if not ret:
-                self.worksheet.append(['인원수',self.total_people_count])
-                self.worksheet.append(['FPS', fps])
-                self.workbook.save(self.excel_file)
-                logger.info("재생종료")
+            if not ret :
+                logger.info("동영상 버퍼 오버플로우 발생 동영상 읽는속도 >>>>>>>>>> 모델 추론속도")
+                logger.info(f"{config.version} 모델이 현재 환경에 적합하지않습니다 모델 버전을 낮춰주세요")
                 cap.release()
                 cv2.destroyAllWindows()
                 break
+
             
             current_time = datetime.now().timestamp()
             fps = 1.0 / (current_time - prev_time) if (current_time - prev_time) > 0 else 0
@@ -150,7 +151,7 @@ if __name__ == "__main__":
     parser.add_argument('--version',type=str,choices = ['yolo11s', 'yolo11m','yolo11l','yolo11x'] , default = 'yolo11x',help='추론버전')
     parser.add_argument('--save_interval' , type=int , default=0.5 , help='엑셀 저장간격(s)')
     parser.add_argument('--save_image',type = str , default = True ,help='이미지 저장 여부')
-    parser.add_argument('--Quantization' , type= str , choices=['intel','mac','None'] , default='None' , help='양자화')
+    parser.add_argument('--Quantization' , type= str , choices=['intel','mac','None'] , default='intel' , help='Intel 가속지원 + 양자화 FP16')
     config = parser.parse_args()
     for key, value in vars(config).items():
         logger.info(f"{key}: {value}")
