@@ -6,7 +6,7 @@ import argparse
 from datetime import datetime
 import os
 import shutil
-import openvino.runtime as ov
+import openvino as ov
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -55,9 +55,9 @@ class main():
                     logging.info(f"{e}")
                     exit(1)
 
-                coreml_model = YOLO(f"{config.version}.mlpackage/")
-                logger.info(f"CoreML model exported to: {coreml_path}")
-                self.model = coreml_model
+            coreml_model = YOLO(f"{config.version}.mlpackage/" , task='detect')
+            logger.info(f"CoreML model loaded from: {coreml_path}")
+            self.model = coreml_model
 
         
 
@@ -77,7 +77,7 @@ class main():
 
     def run(self ):
         cv2.namedWindow('w', cv2.WINDOW_NORMAL)
-        cap = cv2.VideoCapture(1)
+        cap = cv2.VideoCapture(0)
             
         if cap.isOpened():
             logger.info("Camera opened successfully.")
@@ -104,6 +104,9 @@ class main():
 
             if config.Quantization == 'intel':
                 results = self.model(frame, classes=0, save=False, verbose = False , device=f'intel:{self.device.lower()}')
+
+            elif config.Quantization == 'mac':
+                results = self.model(frame ,classes = 0 , save = False , verbose = False)
             else:                
                 results = self.model(frame, classes=0, device=f'{self.config.device}', save=False, verbose=False)
         
@@ -166,10 +169,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="object detection.")
     parser.add_argument('--save_path', type=str, default='', help='저장경로')
     parser.add_argument('--device', type=str, default='cpu',choices = ['cpu','cuda'] , help='추론장치')
-    parser.add_argument('--version',type=str,choices = ['yolo11s', 'yolo11m','yolo11l','yolo11x'] , default = 'yolo11x',help='추론버전')
+    parser.add_argument('--version',type=str,choices = ['yolo11s', 'yolo11m','yolo11l','yolo11x'] , default = 'yolo11l',help='추론버전')
     parser.add_argument('--save_interval' , type=int , default=0.5 , help='엑셀 저장간격(s)')
     parser.add_argument('--save_image',type = str , default = True ,help='이미지 저장 여부')
-    parser.add_argument('--Quantization' , type= str , choices=['intel','mac','None'] , default='intel' , help='Intel 가속지원 + 양자화 FP16')
+    parser.add_argument('--Quantization' , type= str , choices=['intel','mac','None'] , default='mac' , help='Intel 가속지원 + 양자화 FP16')
     config = parser.parse_args()
     for key, value in vars(config).items():
         logger.info(f"{key}: {value}")
