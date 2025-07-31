@@ -43,6 +43,24 @@ class main():
             logger.info(f'Intel OpenVINO model loaded from: {ov_model_path}')
             self.model = ov_model
 
+        
+        elif config.Quantization == 'mac' and config.device =='cpu':
+            coreml_path = f"{config.version}.mlpackage/"
+            if not os.path.exists(coreml_path):
+                logger.info("Exporting to CoreML format...")
+                try:
+                    self.model.export(format="coreml", half=True) 
+                except Exception as e:
+                    logging.info(f"CoreML EXPORT Fail.... 일반버전으로 실행해주세요 ({config.Quantization} ---> None설정)")
+                    logging.info(f"{e}")
+                    exit(1)
+
+                coreml_model = YOLO(f"{config.version}.mlpackage/")
+                logger.info(f"CoreML model exported to: {coreml_path}")
+                self.model = coreml_model
+
+        
+
         start_time = datetime.now().strftime("%d_%H_%M_%S")
         self.excel_file = os.path.join(config.save_path, f'{start_time}_results.xlsx')
         self._init_excel()  
