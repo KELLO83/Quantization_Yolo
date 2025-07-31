@@ -7,6 +7,7 @@ from datetime import datetime
 import os
 import shutil
 import openvino as ov
+import torch
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
@@ -14,6 +15,11 @@ class main():
     def __init__(self,config):
         self.config = config
         self.model = YOLO(f'{config.version}.pt')
+        if config.device == 'cuda':
+            flag = torch.cuda.is_available()
+            if not flag:
+                logging.info("Gpu 추론을 지원하지않습니다")
+        config.device = 'cpu'
         self.model.to(f'{config.device}')  
         logging.info(f"Model loaded: {config.version} on {config.device}")
 
@@ -56,7 +62,7 @@ class main():
                     exit(1)
 
             coreml_model = YOLO(f"{config.version}.mlpackage/" , task='detect')
-            logging.info(f"Model type : {type(ov_model)}")
+            logging.info(f"Model type : {type(coreml_model)}")
             logging.info(f"CoreML model loaded from: {coreml_path}")
             self.model = coreml_model
 
@@ -78,7 +84,7 @@ class main():
 
     def run(self ):
         cv2.namedWindow('w', cv2.WINDOW_NORMAL)
-        cap = cv2.VideoCapture(0)
+        cap = cv2.VideoCapture(config.cam)
             
         if cap.isOpened():
             logging.info("Camera opened successfully.")
@@ -168,11 +174,12 @@ class main():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="object detection.")
+    parser.add_argument('--cam' , type=str , default=0 , help='내장 카메라 0번  외부연결카메라1번이상..')
     parser.add_argument('--save_path', type=str, default='', help='저장경로')
     parser.add_argument('--device', type=str, default='cpu',choices = ['cpu','cuda'] , help='추론장치')
-    parser.add_argument('--version',type=str,choices = ['yolo11s', 'yolo11m','yolo11l','yolo11x'] , default = 'yolo11l',help='추론버전')
+    parser.add_argument('--version',type=str,choices = ['yolo11s','yolo11l','yolo11x'] , default = 'yolo11l',help='추론버전')
     parser.add_argument('--save_interval' , type=int , default=0.5 , help='엑셀 저장간격(s)')
-    parser.add_argument('--save_image',type = str , default = True ,help='이미지 저장 여부')
+    parser.add_argument('--save_image',type = str , default = False ,help='이미지 저장 여부')
     parser.add_argument('--Quantization' , type= str , choices=['intel','mac','None'] , default='mac' , help='가속지원 + 양자화 FP16')
     config = parser.parse_args()
     for key, value in vars(config).items():
