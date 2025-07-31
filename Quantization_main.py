@@ -8,7 +8,6 @@ import os
 import shutil
 import openvino as ov
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
 
 
 class main():
@@ -16,7 +15,7 @@ class main():
         self.config = config
         self.model = YOLO(f'{config.version}.pt')
         self.model.to(f'{config.device}')  
-        logger.info(f"Model loaded: {config.version} on {config.device}")
+        logging.info(f"Model loaded: {config.version} on {config.device}")
 
         if config.Quantization == 'intel' and config.device == 'cpu':
             ov_model_path = f"{config.version}_openvino_model/"
@@ -28,7 +27,7 @@ class main():
                 self.device = device
 
             if not os.path.exists(ov_model_path):
-                logger.info("Exporting to OpenVINO format...")
+                logging.info("Exporting to OpenVINO format...")
                 try:
                     self.model.export(format='openvino' , half = True , simplify= True , dynamic = False , verbose = True , optimize = True)
                 except Exception as e:
@@ -36,18 +35,19 @@ class main():
                     logging.info(f"{e}")
                     exit(1)
             else:
-                logger.info("OpenVINO loadded..")
+                logging.info("OpenVINO loadded..")
             
             ov_model = YOLO(ov_model_path, task='detect')
             logging.info(f"Model type : {type(ov_model)}")
-            logger.info(f'Intel OpenVINO model loaded from: {ov_model_path}')
+            logging.info(f'Intel OpenVINO model loaded from: {ov_model_path}')
             self.model = ov_model
 
         
         elif config.Quantization == 'mac' and config.device =='cpu':
             coreml_path = f"{config.version}.mlpackage/"
             if not os.path.exists(coreml_path):
-                logger.info("Exporting to CoreML format...")
+                logging.info("MacOS에서 사용가능한 가속모드입니다... Windows환경 사용불가")
+                logging.info("Exporting to CoreML format...")
                 try:
                     self.model.export(format="coreml", half=True) 
                 except Exception as e:
@@ -56,7 +56,8 @@ class main():
                     exit(1)
 
             coreml_model = YOLO(f"{config.version}.mlpackage/" , task='detect')
-            logger.info(f"CoreML model loaded from: {coreml_path}")
+            logging.info(f"Model type : {type(ov_model)}")
+            logging.info(f"CoreML model loaded from: {coreml_path}")
             self.model = coreml_model
 
         
@@ -80,9 +81,9 @@ class main():
         cap = cv2.VideoCapture(0)
             
         if cap.isOpened():
-            logger.info("Camera opened successfully.")
+            logging.info("Camera opened successfully.")
         else:
-            logger.error("Failed to open camera.")
+            logging.error("Failed to open camera.")
             return
         
         count = 0
@@ -91,8 +92,8 @@ class main():
         while True:
             ret, frame = cap.read()
             if not ret :
-                logger.info("동영상 버퍼 오버플로우 발생 동영상 읽는속도 >>>>>>>>>> 모델 추론속도")
-                logger.info(f"{config.version} 모델이 현재 환경에 적합하지않습니다 모델 버전을 낮춰주세요")
+                logging.info("동영상 버퍼 오버플로우 발생 동영상 읽는속도 >>>>>>>>>> 모델 추론속도")
+                logging.info(f"{config.version} 모델이 현재 환경에 적합하지않습니다 모델 버전을 낮춰주세요")
                 cap.release()
                 cv2.destroyAllWindows()
                 break
@@ -120,7 +121,7 @@ class main():
             if now.timestamp() - self.last_save_time > self.config.save_interval:
                 self.worksheet.append([time_str, people_count])
                 self.workbook.save(self.excel_file)
-                logger.info(f"엑셀 업데이트: {time_str} - {people_count} people")
+                logging.info(f"엑셀 업데이트: {time_str} - {people_count} people")
                 self.last_save_time = now.timestamp()
                 cv2.imwrite(os.path.join(self.image_save_path, f'{count}.jpg'), image) if self.config.save_image else None
                 self.total_people_count += people_count
@@ -144,10 +145,10 @@ class main():
             self.worksheet['A1'] = '시간'
             self.worksheet['B1'] = '인원수'
             self.workbook.save(self.excel_file)
-            logger.info(f"Excel file initialized and reset: {self.excel_file}")
+            logging.info(f"Excel file initialized and reset: {self.excel_file}")
 
         except Exception as e:
-            logger.error(f"Failed to initialize Excel file: {e}")
+            logging.error(f"Failed to initialize Excel file: {e}")
 
 
     
@@ -155,11 +156,11 @@ class main():
         """ Intel  GPU TPU 확인 """
         core = ov.Core()
         available_devices = core.available_devices
-        logger.info(f"사용 가능한 OpenVINO 장치: {available_devices}")
+        logging.info(f"사용 가능한 OpenVINO 장치: {available_devices}")
 
         for device in ['GPU', 'NPU', 'CPU']:
             if device in available_devices:
-                logger.info(f"선택된 장치: {device}")
+                logging.info(f"선택된 장치: {device}")
                 return device
         
         return 'CPU'
@@ -172,10 +173,10 @@ if __name__ == "__main__":
     parser.add_argument('--version',type=str,choices = ['yolo11s', 'yolo11m','yolo11l','yolo11x'] , default = 'yolo11l',help='추론버전')
     parser.add_argument('--save_interval' , type=int , default=0.5 , help='엑셀 저장간격(s)')
     parser.add_argument('--save_image',type = str , default = True ,help='이미지 저장 여부')
-    parser.add_argument('--Quantization' , type= str , choices=['intel','mac','None'] , default='mac' , help='Intel 가속지원 + 양자화 FP16')
+    parser.add_argument('--Quantization' , type= str , choices=['intel','mac','None'] , default='mac' , help='가속지원 + 양자화 FP16')
     config = parser.parse_args()
     for key, value in vars(config).items():
-        logger.info(f"{key}: {value}")
+        logging.info(f"{key}: {value}")
     
     logging.info('='*30)
     run = main(config)
