@@ -43,7 +43,7 @@ class main():
             else:
                 logging.info("OpenVINO loadded..")
             
-            ov_model = YOLO(ov_model_path, task='detect')
+            ov_model = YOLO(ov_model_path, task='detect' )
             logging.info(f"Model type : {type(ov_model)}")
             logging.info(f'Intel OpenVINO model loaded from: {ov_model_path}')
             self.model = ov_model
@@ -74,14 +74,6 @@ class main():
         self.last_save_time = datetime.now().timestamp()
         self.total_people_count = 0
 
-        if self.config.save_image:
-            self.image_save_path = os.path.join(config.save_path, 'images')
-
-            if os.path.exists(self.image_save_path):
-                shutil.rmtree(self.image_save_path)
-
-            os.makedirs(self.image_save_path, exist_ok=True)
-
     def run(self ):
         cv2.namedWindow('w', cv2.WINDOW_NORMAL)
         cap = cv2.VideoCapture(config.cam)
@@ -110,7 +102,7 @@ class main():
             prev_time = current_time
 
             if config.Quantization == 'intel':
-                results = self.model(frame, classes=0, save=False, verbose = False , device=f'intel:{self.device.lower()}')
+                results = self.model(frame, classes=0, save=False, verbose = False , device=f'intel:{self.device.lower()}' , conf = config.conf , iou = config.iou)
 
             elif config.Quantization == 'mac':
                 results = self.model(frame ,classes = 0 , save = False , verbose = False)
@@ -129,7 +121,6 @@ class main():
                 self.workbook.save(self.excel_file)
                 logging.info(f"엑셀 업데이트: {time_str} - {people_count} people")
                 self.last_save_time = now.timestamp()
-                cv2.imwrite(os.path.join(self.image_save_path, f'{count}.jpg'), image) if self.config.save_image else None
                 self.total_people_count += people_count
                 count += 1            
         
@@ -174,13 +165,14 @@ class main():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="object detection.")
-    parser.add_argument('--cam' , type=str , default=0 , help='내장 카메라 0번  외부연결카메라1번이상..')
+    parser.add_argument('--conf' , type=float , default=0.5 , help='신뢰도값') #중요
+    parser.add_argument('--iou',type=float , default=0.7 , help='겹침 허용도') # 중요
+    parser.add_argument('--cam' , type=str , default=1 , help='내장 카메라 0번  외부연결카메라1번이상..') # 중요
     parser.add_argument('--save_path', type=str, default='', help='저장경로')
     parser.add_argument('--device', type=str, default='cpu',choices = ['cpu','cuda'] , help='추론장치')
-    parser.add_argument('--version',type=str,choices = ['yolo11s','yolo11l','yolo11x'] , default = 'yolo11l',help='추론버전')
-    parser.add_argument('--save_interval' , type=int , default=0.5 , help='엑셀 저장간격(s)')
-    parser.add_argument('--save_image',type = str , default = False ,help='이미지 저장 여부')
-    parser.add_argument('--Quantization' , type= str , choices=['intel','mac','None'] , default='mac' , help='가속지원 + 양자화 FP16')
+    parser.add_argument('--version',type=str,choices = ['yolo11s','yolo11l','yolo11x'] , default = 'yolo11l',help='추론버전') # 중요 선택
+    parser.add_argument('--save_interval' , type=int , default=0.5 , help='엑셀 저장간격(s)') #중요 선택
+    parser.add_argument('--Quantization' , type= str , choices=['intel','mac','None'] , default='intel' , help='가속지원 + 양자화 FP16') #중요선택
     config = parser.parse_args()
     for key, value in vars(config).items():
         logging.info(f"{key}: {value}")
